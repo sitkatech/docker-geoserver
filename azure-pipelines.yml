@@ -1,0 +1,57 @@
+# build Sitkatech fork of kartoza/docker-geoserver
+
+trigger: none
+name: $(Date:yyyyMMdd)$(Rev:.r)
+
+resources:
+- repo: self
+
+variables:
+- group: sitkatech-variables
+  
+jobs:
+- job: BuildDockerImage
+  displayName: 'Build and Push $(Build.Repository.Name) Image'
+  dependsOn: []
+  pool:
+    name: Hosted Ubuntu 1604
+  steps:
+  - script: echo ${{format('{0} {1}', 'Environment - ', '$(environment)')}}
+  - script: echo ${{format('{0} {1}', 'Geoserver version - ', '$(geoserverVersion)')}}
+  - task: Docker@2
+    displayName: Login to ACR
+    inputs:
+      command: login
+      containerRegistry: '$(containerRegistry)'
+  - task: Docker@2
+    displayName: 'Build $(Build.Repository.Name) Image'
+    inputs:
+      command: build
+      repository: '$(repository)'
+      dockerfile: '$(Build.SourcesDirectory)/Dockerfile'
+      containerRegistry: '$(containerRegistry)'
+      arguments: |
+        --build-arg GS_VERSION=$(geoserverVersion)
+      tags: |
+        $(geoserverVersion)-$(environment)
+        $(Build.BuildNumber)-$(environment)
+        $(Build.SourceBranchName)-$(Build.SourceVersion)-$(environment)
+        $(environment)
+        $(additionalImageTags)
+  - task: Docker@2
+    displayName: 'Push $(Build.Repository.Name) Image'
+    inputs:
+      command: push
+      repository: '$(repository)'
+      containerRegistry: '$(containerRegistry)'
+      tags: |
+        $(geoserverVersion)-$(environment)
+        $(Build.BuildNumber)-$(environment)
+        $(Build.SourceBranchName)-$(Build.SourceVersion)-$(environment)
+        $(environment)
+        $(additionalImageTags)
+  - task: Docker@2
+    displayName: Logout of ACR
+    inputs:
+      command: logout
+      containerRegistry: '$(containerRegistry)'
