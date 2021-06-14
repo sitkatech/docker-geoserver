@@ -65,10 +65,10 @@
                 </xsl:attribute>
             </xsl:if>
             <xsl:if test="$http.maxHttpHeaderSize">
-                 <xsl:attribute name="maxHttpHeaderSize">
-                     <xsl:value-of select="$http.maxHttpHeaderSize"/>
-                 </xsl:attribute>
-             </xsl:if>
+                <xsl:attribute name="maxHttpHeaderSize">
+                    <xsl:value-of select="$http.maxHttpHeaderSize"/>
+                </xsl:attribute>
+            </xsl:if>
 
             <xsl:apply-templates select="node()"/>
         </xsl:copy>
@@ -106,10 +106,10 @@
                 </xsl:attribute>
             </xsl:if>
             <xsl:if test="$https.maxHttpHeaderSize">
-                 <xsl:attribute name="maxHttpHeaderSize">
-                     <xsl:value-of select="$https.maxHttpHeaderSize"/>
-                 </xsl:attribute>
-             </xsl:if>
+                <xsl:attribute name="maxHttpHeaderSize">
+                    <xsl:value-of select="$https.maxHttpHeaderSize"/>
+                </xsl:attribute>
+            </xsl:if>
         </Connector>
     </xsl:template>
     

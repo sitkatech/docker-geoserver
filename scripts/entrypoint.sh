@@ -2,7 +2,14 @@
 set -e
 
 
-/scripts/start.sh
+figlet -t "Kartoza Docker GeoServer"
+
+source /scripts/functions.sh
+source /scripts/env-data.sh
+
+advertise
+
+/bin/bash /scripts/start.sh
 
 CLUSTER_CONFIG_DIR="${GEOSERVER_DATA_DIR}/cluster/instance_$RANDOMSTRING"
 MONITOR_AUDIT_PATH="${GEOSERVER_DATA_DIR}/monitoring/monitor_$RANDOMSTRING"
@@ -11,7 +18,7 @@ export GEOSERVER_OPTS="-Djava.awt.headless=true -server -Xms${INITIAL_MEMORY} -X
        -XX:PerfDataSamplingInterval=500 -Dorg.geotools.referencing.forceXY=true \
        -XX:SoftRefLRUPolicyMSPerMB=36000  -XX:NewRatio=2 \
        -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:ParallelGCThreads=20 -XX:ConcGCThreads=5 \
-       -XX:InitiatingHeapOccupancyPercent=70 -XX:+CMSClassUnloadingEnabled \
+       -XX:InitiatingHeapOccupancyPercent=${INITIAL_HEAT_OCCUPANCY_PERCENT} -XX:+CMSClassUnloadingEnabled \
        -Djts.overlay=ng \
        -Dfile.encoding=${ENCODING} \
        -Duser.timezone=${TIMEZONE} \
@@ -29,13 +36,13 @@ export GEOSERVER_OPTS="-Djava.awt.headless=true -server -Xms${INITIAL_MEMORY} -X
        -Dsun.java2d.renderer=org.marlin.pisces.PiscesRenderingEngine \
        -Dgeoserver.login.autocomplete=${LOGIN_STATUS} \
        -DGEOSERVER_CONSOLE_DISABLED=${WEB_INTERFACE} \
+       -DGEOSERVER_CSRF_WHITELIST=${CSRF_WHITELIST} \
        -Dgeoserver.xframe.shouldSetPolicy=${XFRAME_OPTIONS} "
 
-## Preparare the JVM command line arguments
+## Prepare the JVM command line arguments
 export JAVA_OPTS="${JAVA_OPTS} ${GEOSERVER_OPTS}"
 
-if ls /geoserver/start.jar >/dev/null 2>&1; then
-  cd /geoserver/
+if [[ -f ${GEOSERVER_HOME}/start.jar ]]; then
   exec java $JAVA_OPTS  -jar start.jar
 else
   exec /usr/local/tomcat/bin/catalina.sh run

@@ -1,16 +1,28 @@
 #!/usr/bin/env bash
 # Download geoserver extensions and other resources
 
+source /scripts/env-data.sh
 source /scripts/functions.sh
 
 resources_dir="/tmp/resources"
 create_dir ${resources_dir}/plugins/gdal
 create_dir /usr/share/fonts/opentype
 create_dir /tomcat_apps
-
-
+create_dir /usr/local/gdal_data
+create_dir /usr/local/gdal_native_libs
 
 pushd /plugins
+
+# Check if we have pre downloaded plugin yet
+stable_count=`ls -1 $resources_dir/plugins/stable_plugins/*.zip 2>/dev/null | wc -l`
+if [ $stable_count != 0 ]; then
+  cp -r $resources_dir/plugins/stable_plugins/*.zip /plugins/
+fi
+
+community_count=`ls -1 $resources_dir/plugins/community_plugins/*.zip 2>/dev/null | wc -l`
+if [ $community_count != 0 ]; then
+  cp -r $resources_dir/plugins/community_plugin/*.zip /plugins/
+fi
 
 # Download all other stable plugins to keep for activating using env variables, excludes the mandatory stable ones installed
 
@@ -52,8 +64,6 @@ for i in "${array[@]}"; do
   download_extension ${url} ${i%.*} ${resources_dir}/plugins
 done
 
-
-
 pushd gdal
 
 ${request} http://demo.geo-solutions.it/share/github/imageio-ext/releases/1.1.X/1.1.15/native/gdal/gdal-data.zip
@@ -70,8 +80,6 @@ fi
 
 dpkg -i ${resources_dir}/libjpeg-turbo-official_1.5.3_amd64.deb
 
-
-
 pushd ${CATALINA_HOME}
 
 # Download geoserver
@@ -85,56 +93,68 @@ if [[ -f /tmp/geoserver/geoserver.war ]]; then
   rm -rf ${CATALINA_HOME}/webapps/geoserver/data &&
   rm -rf /tmp/geoserver
 else
-  mv /tmp/geoserver /geoserver &&
+  cp -r /tmp/geoserver/* /geoserver/ &&
   cp -r /geoserver/webapps/geoserver ${CATALINA_HOME}/webapps/geoserver &&
   cp -r /geoserver/data_dir ${CATALINA_HOME}/data &&
-  cp -r /geoserver/data_dir/security ${CATALINA_HOME}
+  mv ${CATALINA_HOME}/data/security ${CATALINA_HOME}
+fi
+
+# Install GeoServer plugins in correct install dir
+ if [[ -f ${GEOSERVER_HOME}/start.jar ]]; then
+   GEOSERVER_INSTALL_DIR=${GEOSERVER_HOME}
+else
+  GEOSERVER_INSTALL_DIR=${CATALINA_HOME}
 fi
 
 # Install any plugin zip files in resources/plugins
 if ls /tmp/resources/plugins/*.zip >/dev/null 2>&1; then
   for p in /tmp/resources/plugins/*.zip; do
     unzip $p -d /tmp/gs_plugin &&
-      mv /tmp/gs_plugin/*.jar ${CATALINA_HOME}/webapps/geoserver/WEB-INF/lib/ &&
+      mv /tmp/gs_plugin/*.jar ${GEOSERVER_INSTALL_DIR}/webapps/geoserver/WEB-INF/lib/ &&
       rm -rf /tmp/gs_plugin
   done
 fi
 
 # Temporary fix for the print plugin https://github.com/georchestra/georchestra/pull/2517
 
-rm ${CATALINA_HOME}/webapps/geoserver/WEB-INF/lib/json-20180813.jar && \
-${request} https://repo1.maven.org/maven2/org/json/json/20080701/json-20080701.jar \
--O ${CATALINA_HOME}/webapps/geoserver/WEB-INF/lib/json-20080701.jar
+if [[ -f ${GEOSERVER_INSTALL_DIR}/webapps/geoserver/WEB-INF/lib/json-20180813.jar ]]; then
+  rm ${GEOSERVER_INSTALL_DIR}/webapps/geoserver/WEB-INF/lib/json-20180813.jar && \
+  ${request} https://repo1.maven.org/maven2/org/json/json/20080701/json-20080701.jar \
+  -O ${GEOSERVER_INSTALL_DIR}/webapps/geoserver/WEB-INF/lib/json-20080701.jar
+fi
 
 # Activate gdal plugin in geoserver
 if ls /tmp/resources/plugins/*gdal*.tar.gz >/dev/null 2>&1; then
-  mkdir /usr/local/gdal_data && mkdir /usr/local/gdal_native_libs
   unzip /tmp/resources/plugins/gdal/gdal-data.zip -d /usr/local/gdal_data &&
     mv /usr/local/gdal_data/gdal-data/* /usr/local/gdal_data && rm -rf /usr/local/gdal_data/gdal-data &&
     tar xzf /tmp/resources/plugins/gdal192-Ubuntu12-gcc4.6.3-x86_64.tar.gz -C /usr/local/gdal_native_libs
 fi
 # Install Marlin render
-if [[ ! -f ${CATALINA_HOME}/webapps/geoserver/WEB-INF/lib/marlin-sun-java2d.jar ]]; then
+if [[ ! -f ${GEOSERVER_INSTALL_DIR}/webapps/geoserver/WEB-INF/lib/marlin-sun-java2d.jar ]]; then
   ${request} https://github.com/bourgesl/marlin-renderer/releases/download/v0_9_4_2_jdk9/marlin-0.9.4.2-Unsafe-OpenJDK9.jar \
-    -O ${CATALINA_HOME}/webapps/geoserver/WEB-INF/lib/marlin-0.9.4.2-Unsafe-OpenJDK9.jar
+    -O ${GEOSERVER_INSTALL_DIR}/webapps/geoserver/WEB-INF/lib/marlin-0.9.4.2-Unsafe-OpenJDK9.jar
 fi
 
 # Install sqljdbc
-if [[ ! -f ${CATALINA_HOME}/webapps/geoserver/WEB-INF/lib/sqljdbc.jar ]]; then
+if [[ ! -f ${GEOSERVER_INSTALL_DIR}/webapps/geoserver/WEB-INF/lib/sqljdbc.jar ]]; then
   ${request} https://clojars.org/repo/com/microsoft/sqlserver/sqljdbc4/4.0/sqljdbc4-4.0.jar \
-    -O ${CATALINA_HOME}/webapps/geoserver/WEB-INF/lib/sqljdbc.jar
+    -O ${GEOSERVER_INSTALL_DIR}/webapps/geoserver/WEB-INF/lib/sqljdbc.jar
 fi
 
 # Install jetty-servlets
-if [[ ! -f ${CATALINA_HOME}/webapps/geoserver/WEB-INF/lib/jetty-servlets.jar ]]; then
-  ${request} https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-servlets/9.4.21.v20190926/jetty-servlets-9.4.21.v20190926.jar \
-    -O ${CATALINA_HOME}/webapps/geoserver/WEB-INF/lib/jetty-servlets.jar
+if [[ -f ${GEOSERVER_HOME}/start.jar ]]; then
+  if [[ ! -f ${GEOSERVER_HOME}/webapps/geoserver/WEB-INF/lib/jetty-servlets.jar ]]; then
+    ${request} https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-servlets/9.4.21.v20190926/jetty-servlets-9.4.21.v20190926.jar \
+      -O ${GEOSERVER_HOME}/webapps/geoserver/WEB-INF/lib/jetty-servlets.jar
+  fi
 fi
 
 # Install jetty-util
-if [[ ! -f ${CATALINA_HOME}/webapps/geoserver/WEB-INF/lib/jetty-util.jar ]]; then
-  ${request} https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-util/9.4.21.v20190926/jetty-util-9.4.21.v20190926.jar \
-    -O ${CATALINA_HOME}/webapps/geoserver/WEB-INF/lib/jetty-util.jar
+if [[ -f ${GEOSERVER_HOME}/start.jar ]]; then
+  if [[ ! -f ${GEOSERVER_HOME}/webapps/geoserver/WEB-INF/lib/jetty-util.jar ]]; then
+    ${request} https://repo1.maven.org/maven2/org/eclipse/jetty/jetty-util/9.4.21.v20190926/jetty-util-9.4.21.v20190926.jar \
+      -O ${GEOSERVER_HOME}/webapps/geoserver/WEB-INF/lib/jetty-util.jar
+  fi
 fi
 
 # Overlay files and directories in resources/overlays if they exist
@@ -142,7 +162,6 @@ rm -f /tmp/resources/overlays/README.txt &&
   if ls /tmp/resources/overlays/* >/dev/null 2>&1; then
     cp -rf /tmp/resources/overlays/* /
   fi
-
 
 # Package tomcat webapps - useful to activate later
 if [ -d $CATALINA_HOME/webapps.dist ]; then
@@ -156,8 +175,6 @@ else
     cp -r "${CATALINA_HOME}"/webapps/manager /tomcat_apps &&
     zip -r /tomcat_apps.zip /tomcat_apps && rm -r /tomcat_apps
 fi
-
-
 
 # Delete resources after installation
 rm -rf /tmp/resources
