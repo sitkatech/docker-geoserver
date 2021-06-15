@@ -31,7 +31,6 @@ jobs:
       dockerfile: '$(Build.SourcesDirectory)/Dockerfile'
       containerRegistry: '$(containerRegistry)'
       tags: |
-        $(geoserverVersion)-$(environment)
         $(Build.BuildNumber)-$(environment)
         $(Build.SourceBranchName)-$(Build.SourceVersion)-$(environment)
         $(environment)
