@@ -30,7 +30,10 @@ jobs:
       repository: '$(repository)'
       dockerfile: '$(Build.SourcesDirectory)/Dockerfile'
       containerRegistry: '$(containerRegistry)'
+      arguments: |
+        --build-arg GS_VERSION=$(geoserverVersion)      
       tags: |
+        $(geoserverVersion)-$(environment)
         $(Build.BuildNumber)-$(environment)
         $(Build.SourceBranchName)-$(Build.SourceVersion)-$(environment)
         $(environment)
