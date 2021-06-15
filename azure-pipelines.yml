@@ -31,9 +31,7 @@ jobs:
       dockerfile: '$(Build.SourcesDirectory)/Dockerfile'
       containerRegistry: '$(containerRegistry)'
       arguments: |
-        --build-arg GS_VERSION=$(geoserverVersion)
-        --build-arg IMAGE_VERSION=$(tomcatVersion)
-        --build-arg JAVA_HOME=$(javaHome)
+        --build-arg GS_VERSION=$(geoserverVersion)      
       tags: |
         $(geoserverVersion)-$(environment)
         $(Build.BuildNumber)-$(environment)
